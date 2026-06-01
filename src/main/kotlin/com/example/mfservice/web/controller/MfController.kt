@@ -3,14 +3,18 @@ package com.example.mfservice.web.controller
 import com.example.mfservice.domain.OrderStatus
 import com.example.mfservice.domain.SipStatus
 import com.example.mfservice.security.TenantContextHolder
+import com.example.mfservice.service.AnalyticsService
 import com.example.mfservice.service.FolioStatementService
 import com.example.mfservice.service.PortfolioService
 import com.example.mfservice.service.SipOrderService
+import com.example.mfservice.web.dto.AnalyticsResponse
+import com.example.mfservice.web.dto.CapitalGainsResponse
 import com.example.mfservice.web.dto.FolioDetailResponse
 import com.example.mfservice.web.dto.FolioResponse
 import com.example.mfservice.web.dto.HoldingsResponse
 import com.example.mfservice.web.dto.OrderResponse
 import com.example.mfservice.web.dto.PageResponse
+import com.example.mfservice.web.dto.PerformancePoint
 import com.example.mfservice.web.dto.SipResponse
 import com.example.mfservice.web.dto.SummaryResponse
 import com.example.mfservice.web.dto.TransactionResponse
@@ -28,6 +32,7 @@ class MfController(
     private val portfolio: PortfolioService,
     private val sipOrders: SipOrderService,
     private val foliosStatements: FolioStatementService,
+    private val analytics: AnalyticsService,
 ) {
     @GetMapping("/health")
     fun health(): Map<String, String> = mapOf("status" to "ok")
@@ -37,6 +42,18 @@ class MfController(
 
     @GetMapping("/holdings")
     fun holdings(): HoldingsResponse = portfolio.holdings(tenant())
+
+    @GetMapping("/analytics")
+    fun analytics(): AnalyticsResponse = analytics.analytics(tenant())
+
+    @GetMapping("/capital-gains")
+    fun capitalGains(): CapitalGainsResponse = analytics.capitalGains(tenant())
+
+    @GetMapping("/performance")
+    fun performance(): List<PerformancePoint> = analytics.performance(tenant())
+
+    @GetMapping("/sips/upcoming")
+    fun upcomingSips(): List<SipResponse> = sipOrders.upcomingSips(tenant())
 
     @GetMapping("/sips")
     fun sips(

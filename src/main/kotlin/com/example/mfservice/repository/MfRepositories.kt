@@ -22,9 +22,11 @@ interface MfFolioRepository : CrudRepository<MfFolio, UUID> {
 }
 
 interface MfSipRepository : CrudRepository<MfSip, UUID> {
+    fun findByTenantId(tenantId: UUID): List<MfSip>
     fun findByTenantIdAndStatus(tenantId: UUID, status: SipStatus, pageable: Pageable): Page<MfSip>
     fun countByTenantIdAndStatus(tenantId: UUID, status: SipStatus): Long
     fun findByTenantIdAndFolioId(tenantId: UUID, folioId: UUID): List<MfSip>
+    fun findByTenantIdAndStatusAndNextDateIsNotNullOrderByNextDateAsc(tenantId: UUID, status: SipStatus): List<MfSip>
 }
 
 interface MfOrderRepository : CrudRepository<MfOrder, UUID> {
@@ -32,6 +34,7 @@ interface MfOrderRepository : CrudRepository<MfOrder, UUID> {
 }
 
 interface MfTransactionRepository : CrudRepository<MfTransaction, UUID> {
+    fun findByTenantId(tenantId: UUID): List<MfTransaction>
     fun findByTenantIdAndFolioIdOrderByDateDesc(tenantId: UUID, folioId: UUID, pageable: Pageable): Page<MfTransaction>
     fun findTop5ByTenantIdAndFolioIdOrderByDateDesc(tenantId: UUID, folioId: UUID): List<MfTransaction>
 }

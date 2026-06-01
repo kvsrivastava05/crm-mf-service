@@ -4,6 +4,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
+import jakarta.persistence.Index
 import jakarta.persistence.Table
 import java.math.BigDecimal
 import java.time.Instant
@@ -11,7 +12,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 @Entity
-@Table(name = "mf_funds")
+@Table(name = "mf_funds", indexes = [Index(name = "idx_mf_fund_tenant", columnList = "tenantId")])
 class MfFund(
     @Id val id: UUID,
     val tenantId: UUID,
@@ -25,7 +26,7 @@ class MfFund(
 )
 
 @Entity
-@Table(name = "mf_folios")
+@Table(name = "mf_folios", indexes = [Index(name = "idx_mf_folio_tenant", columnList = "tenantId")])
 class MfFolio(
     @Id val id: UUID,
     val tenantId: UUID,
@@ -37,7 +38,13 @@ class MfFolio(
 )
 
 @Entity
-@Table(name = "mf_sips")
+@Table(
+    name = "mf_sips",
+    indexes = [
+        Index(name = "idx_mf_sip_tenant_status", columnList = "tenantId,status"),
+        Index(name = "idx_mf_sip_tenant_folio", columnList = "tenantId,folioId"),
+    ],
+)
 class MfSip(
     @Id val id: UUID,
     val tenantId: UUID,
@@ -52,7 +59,7 @@ class MfSip(
 )
 
 @Entity
-@Table(name = "mf_orders")
+@Table(name = "mf_orders", indexes = [Index(name = "idx_mf_order_tenant_status", columnList = "tenantId,status")])
 class MfOrder(
     @Id val id: UUID,
     val tenantId: UUID,
@@ -68,7 +75,13 @@ class MfOrder(
 )
 
 @Entity
-@Table(name = "mf_transactions")
+@Table(
+    name = "mf_transactions",
+    indexes = [
+        Index(name = "idx_mf_txn_tenant_folio_date", columnList = "tenantId,folioId,date"),
+        Index(name = "idx_mf_txn_tenant_date", columnList = "tenantId,date"),
+    ],
+)
 class MfTransaction(
     @Id val id: UUID,
     val tenantId: UUID,

@@ -101,3 +101,42 @@ data class FolioDetailResponse(
     val sips: List<SipResponse>,
     val recentTransactions: List<TransactionResponse>,
 )
+
+/** One slice of the asset-allocation donut. */
+data class AssetAllocationSlice(
+    val category: String,
+    val currentValue: BigDecimal,
+    val pct: Double,
+)
+
+/** Portfolio analytics: returns (incl. annualized XIRR), allocation, and best/worst holdings. */
+data class AnalyticsResponse(
+    val totalInvested: BigDecimal,
+    val totalCurrentValue: BigDecimal,
+    val totalGain: BigDecimal,
+    val gainPct: Double,
+    val xirr: Double,
+    val assetAllocation: List<AssetAllocationSlice>,
+    val bestFund: FundHolding?,
+    val worstFund: FundHolding?,
+)
+
+/** Invested vs current value for one tax bucket (short-/long-term holding). */
+data class CapitalGainsBucket(
+    val invested: BigDecimal,
+    val currentValue: BigDecimal,
+    val gain: BigDecimal,
+)
+
+data class CapitalGainsResponse(
+    val shortTerm: CapitalGainsBucket,
+    val longTerm: CapitalGainsBucket,
+    val total: CapitalGainsBucket,
+)
+
+/** One point on the invested-vs-value performance chart. */
+data class PerformancePoint(
+    val date: LocalDate,
+    val invested: BigDecimal,
+    val value: BigDecimal,
+)

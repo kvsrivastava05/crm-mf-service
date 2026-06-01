@@ -91,6 +91,19 @@ class MfMvcTest {
     }
 
     @Test
+    fun `analytics, capital-gains, performance and upcoming SIPs respond`() {
+        val analytics = mvc.perform(get("/mf/analytics").headers(auth())).andReturn().response
+        assertEquals(200, analytics.status)
+        assertTrue(analytics.contentAsString.contains("assetAllocation"))
+        assertTrue(analytics.contentAsString.contains("xirr"))
+        assertEquals(200, status("/mf/capital-gains", auth()))
+        assertEquals(200, status("/mf/performance", auth()))
+        val upcoming = mvc.perform(get("/mf/sips/upcoming").headers(auth())).andReturn().response
+        assertEquals(200, upcoming.status)
+        assertEquals(401, status("/mf/analytics")) // still gated
+    }
+
+    @Test
     fun `requests without a valid token are 401`() {
         assertEquals(401, status("/mf/summary"))
         assertEquals(401, mvc.perform(get("/mf/summary").header("Authorization", "Bearer garbage")).andReturn().response.status)

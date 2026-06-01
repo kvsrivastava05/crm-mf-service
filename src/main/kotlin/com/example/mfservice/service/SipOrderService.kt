@@ -47,6 +47,14 @@ class SipOrderService(
         )
     }
 
+    /** Active SIPs with a scheduled next instalment, soonest first (the upcoming-SIP calendar). */
+    fun upcomingSips(tenantId: UUID): List<SipResponse> {
+        val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
+        val foliosById = folios.findByTenantId(tenantId).associateBy { it.id }
+        return sips.findByTenantIdAndStatusAndNextDateIsNotNullOrderByNextDateAsc(tenantId, SipStatus.ACTIVE)
+            .map { toSip(it, fundsById, foliosById) }
+    }
+
     private fun toSip(s: MfSip, fundsById: Map<UUID, MfFund>, foliosById: Map<UUID, MfFolio>) = SipResponse(
         id = s.id.toString(),
         fundName = fundsById.getValue(s.fundId).name,
