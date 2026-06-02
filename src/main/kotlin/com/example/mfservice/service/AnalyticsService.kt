@@ -43,10 +43,7 @@ class AnalyticsService(
         }
         // XIRR cashflows: each folio's invested amount as an outflow at the date the holding began
         // (its first SIP/transaction), plus the current value as one inflow today.
-        val startByFolio = holdingStartByFolio(tenantId, customerId)
-        val cashflows = folios.findByTenantIdAndCustomerId(tenantId, customerId).map { f ->
-            (startByFolio[f.id] ?: LocalDate.now()) to f.investedAmount.negate().toDouble()
-        } + (LocalDate.now() to summary.totalCurrentValue.toDouble())
+        val cashflows = investedOutflows(tenantId, customerId) + (LocalDate.now() to summary.totalCurrentValue.toDouble())
         return AnalyticsResponse(
             totalInvested = summary.totalInvested,
             totalCurrentValue = summary.totalCurrentValue,
@@ -94,6 +91,15 @@ class AnalyticsService(
             val invested = upTo.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.amount) }
             val value = upTo.fold(BigDecimal.ZERO) { acc, t -> acc.add(t.units.multiply(fundsById.getValue(t.fundId).currentNav)) }
             PerformancePoint(asOf, invested, value)
+        }
+    }
+
+    /** Each folio's invested amount as a negative outflow at the date the holding began — the XIRR
+     *  basis. Exposed so the family rollup can merge every member's cashflows into one family XIRR. */
+    fun investedOutflows(tenantId: UUID, customerId: UUID): List<Pair<LocalDate, Double>> {
+        val startByFolio = holdingStartByFolio(tenantId, customerId)
+        return folios.findByTenantIdAndCustomerId(tenantId, customerId).map { f ->
+            (startByFolio[f.id] ?: LocalDate.now()) to f.investedAmount.negate().toDouble()
         }
     }
 

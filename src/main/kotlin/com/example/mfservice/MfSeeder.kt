@@ -62,7 +62,10 @@ class MfSeeder(
 
         customers.saveAll(
             listOf(
-                MfCustomer(CUSTOMER_0, TENANT, "Aarav Mehta", "aarav@example.com"),
+                // Aarav heads a family; Priya and Ira are his family members (their own portfolios + logins).
+                MfCustomer(CUSTOMER_0, TENANT, "Aarav Mehta", "aarav@rapidfinserv.com", FAMILY_0, "Self", true),
+                MfCustomer(CUSTOMER_6, TENANT, "Priya Mehta", "priya@rapidfinserv.com", FAMILY_0, "Spouse", false),
+                MfCustomer(CUSTOMER_7, TENANT, "Ira Mehta", "ira@rapidfinserv.com", FAMILY_0, "Daughter", false),
                 MfCustomer(CUSTOMER_1, TENANT, "Kavya Nair", "kavya@example.com"),
                 MfCustomer(CUSTOMER_2, TENANT, "Diya Sharma", "diya@example.com"),
                 MfCustomer(CUSTOMER_3, TENANT, "Ananya Gupta", "ananya@example.com"),
@@ -133,6 +136,13 @@ class MfSeeder(
         seedClient(CUSTOMER_4, 200500, fundList, today, listOf(
             Holding(2, "150", "22000", "2500"),
         ))
+        // Aarav's family members each hold a small portfolio of their own.
+        seedClient(CUSTOMER_6, 200600, fundList, today, listOf(
+            Holding(0, "400", "20000", "2000"), Holding(8, "500", "20000", null),
+        ))
+        seedClient(CUSTOMER_7, 200700, fundList, today, listOf(
+            Holding(8, "300", "12000", "1000"),
+        ))
     }
 
     /** A planned holding for a smaller client: which fund, units, amount invested, optional active SIP. */
@@ -171,5 +181,8 @@ class MfSeeder(
         val CUSTOMER_3: UUID = UUID.fromString("d0000000-0000-0000-0000-000000000004")
         val CUSTOMER_4: UUID = UUID.fromString("d0000000-0000-0000-0000-000000000005")
         val CUSTOMER_5: UUID = UUID.fromString("d0000000-0000-0000-0000-000000000006")
+        val CUSTOMER_6: UUID = UUID.fromString("d0000000-0000-0000-0000-000000000007") // Priya Mehta (spouse)
+        val CUSTOMER_7: UUID = UUID.fromString("d0000000-0000-0000-0000-000000000008") // Ira Mehta (daughter)
+        val FAMILY_0: UUID = UUID.fromString("f0000000-0000-0000-0000-000000000001") // the Mehta family
     }
 }

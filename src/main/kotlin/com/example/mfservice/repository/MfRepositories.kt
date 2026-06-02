@@ -16,6 +16,7 @@ import java.util.UUID
 interface MfCustomerRepository : CrudRepository<MfCustomer, UUID> {
     fun findByTenantIdOrderByName(tenantId: UUID): List<MfCustomer>
     fun findByIdAndTenantId(id: UUID, tenantId: UUID): MfCustomer?
+    fun findByTenantIdAndFamilyId(tenantId: UUID, familyId: UUID): List<MfCustomer>
 }
 
 interface MfFundRepository : CrudRepository<MfFund, UUID> {

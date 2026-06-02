@@ -13,11 +13,14 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.setup.DefaultMockMvcBuilder
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.context.WebApplicationContext
 import java.nio.charset.StandardCharsets
 import java.util.Date
@@ -42,8 +45,10 @@ class MfMvcTest {
             .build()
     }
 
-    private fun auth(role: String = "owner"): HttpHeaders {
-        val jwt = Jwts.builder().subject("b0000000-0000-0000-0000-000000000001")
+    private fun auth(role: String = "owner"): HttpHeaders = authAs(role, "b0000000-0000-0000-0000-000000000001")
+
+    private fun authAs(role: String, subject: String): HttpHeaders {
+        val jwt = Jwts.builder().subject(subject)
             .claim("tenant", tenant).claim("role", role)
             .issuedAt(Date()).expiration(Date(System.currentTimeMillis() + 3_600_000))
             .signWith(key).compact()
@@ -62,6 +67,33 @@ class MfMvcTest {
     @Test
     fun `health is open without a token`() {
         assertEquals(200, status("/mf/health"))
+    }
+
+    @Test
+    fun `family view is visible to staff and to the head client, but not other clients`() {
+        val kavya = "d0000000-0000-0000-0000-000000000002"
+        // staff can view any client's family
+        val staff = mvc.perform(get("/mf/family?customerId=$customer").headers(auth())).andReturn().response
+        assertEquals(200, staff.status)
+        assertTrue(staff.contentAsString.contains("Priya Mehta"))
+        assertTrue(staff.contentAsString.contains("xirr"))
+        // the head (a customer whose own id is Aarav's) can view their own family
+        assertEquals(200, status("/mf/family?customerId=$customer", authAs("customer", customer)))
+        // a different customer cannot view Aarav's family
+        assertEquals(403, status("/mf/family?customerId=$customer", authAs("customer", kavya)))
+        // a client with no family -> 404
+        assertEquals(404, status("/mf/family?customerId=$kavya", auth()))
+    }
+
+    @Test
+    @Transactional
+    fun `staff can add a family member but a customer cannot`() {
+        val body = """{"headCustomerId":"$customer","name":"New Member","email":"new@example.com","relation":"Son"}"""
+        val ok = mvc.perform(post("/mf/family/members").headers(auth()).contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().response
+        assertEquals(200, ok.status)
+        assertTrue(ok.contentAsString.contains("New Member"))
+        val forbidden = mvc.perform(post("/mf/family/members").headers(authAs("customer", customer)).contentType(MediaType.APPLICATION_JSON).content(body)).andReturn().response
+        assertEquals(403, forbidden.status)
     }
 
     @Test

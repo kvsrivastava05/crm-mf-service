@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
@@ -21,6 +22,7 @@ class MfServicesTest {
     @Autowired lateinit var sipOrders: SipOrderService
     @Autowired lateinit var foliosStatements: FolioStatementService
     @Autowired lateinit var customers: CustomerService
+    @Autowired lateinit var family: FamilyService
     @Autowired lateinit var folios: MfFolioRepository
 
     private val tenant = UUID.fromString("a0000000-0000-0000-0000-000000000001")
@@ -129,9 +131,9 @@ class MfServicesTest {
     @Test
     fun `customer roster lists every client sorted by name with rolled-up portfolios`() {
         val roster = customers.listCustomers(tenant)
-        assertEquals(6, roster.size)
+        assertEquals(8, roster.size) // 6 clients + Aarav's two family members
         assertEquals(
-            listOf("Aarav Mehta", "Ananya Gupta", "Diya Sharma", "Karan Malhotra", "Kavya Nair", "Rohit Das"),
+            listOf("Aarav Mehta", "Ananya Gupta", "Diya Sharma", "Ira Mehta", "Karan Malhotra", "Kavya Nair", "Priya Mehta", "Rohit Das"),
             roster.map { it.name },
         )
         val aarav = roster.first { it.name == "Aarav Mehta" }
@@ -146,5 +148,45 @@ class MfServicesTest {
     fun `customer name resolves within the tenant and is null for an unknown client`() {
         assertEquals("Aarav Mehta", customers.customerName(tenant, MfSeeder.CUSTOMER_0))
         assertNull(customers.customerName(tenant, UUID.randomUUID()))
+    }
+
+    @Test
+    fun `family rolls up every member with totals and a family XIRR, head listed first`() {
+        val fam = family.family(tenant, MfSeeder.CUSTOMER_0)
+        assertEquals(3, fam.members.size) // Aarav (head) + Priya + Ira
+        assertTrue(fam.members.first().isHead && fam.members.first().relation == "Self")
+        assertTrue(fam.members.any { it.name == "Priya Mehta" } && fam.members.any { it.name == "Ira Mehta" })
+        // the family total exceeds the head's own portfolio, and gain = value - invested
+        assertTrue(fam.totalInvested > portfolio.summary(tenant, MfSeeder.CUSTOMER_0).totalInvested)
+        assertEquals(0, fam.totalCurrentValue.subtract(fam.totalInvested).compareTo(fam.totalGain))
+        assertTrue(fam.xirr > 0.0)
+        assertTrue(family.isHead(tenant, MfSeeder.CUSTOMER_0))
+        assertFalse(family.isHead(tenant, MfSeeder.CUSTOMER_1)) // Kavya heads no family
+    }
+
+    @Test
+    fun `family is 404 for a client with no family and for an unknown client`() {
+        val noFamily = assertThrows(ResponseStatusException::class.java) { family.family(tenant, MfSeeder.CUSTOMER_1) }
+        assertEquals(404, noFamily.statusCode.value())
+        val unknown = assertThrows(ResponseStatusException::class.java) { family.family(tenant, UUID.randomUUID()) }
+        assertEquals(404, unknown.statusCode.value())
+    }
+
+    @Test
+    @Transactional
+    fun `adding a member starts a family on a head that had none and links the member`() {
+        val member = family.addMember(tenant, MfSeeder.CUSTOMER_2, "Baby Sharma", "baby@example.com", "Daughter") // Diya Sharma had no family
+        assertEquals("Daughter", member.relation)
+        assertFalse(member.isHead)
+        assertTrue(family.isHead(tenant, MfSeeder.CUSTOMER_2)) // Diya is now the head
+        val fam = family.family(tenant, MfSeeder.CUSTOMER_2)
+        assertEquals(2, fam.members.size)
+        assertTrue(fam.members.any { it.name == "Baby Sharma" })
+    }
+
+    @Test
+    fun `adding a member to an unknown head is 404`() {
+        val ex = assertThrows(ResponseStatusException::class.java) { family.addMember(tenant, UUID.randomUUID(), "X", "x@example.com", "Son") }
+        assertEquals(404, ex.statusCode.value())
     }
 }

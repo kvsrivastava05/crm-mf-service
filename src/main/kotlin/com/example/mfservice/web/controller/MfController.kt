@@ -6,12 +6,15 @@ import com.example.mfservice.security.TenantContext
 import com.example.mfservice.security.TenantContextHolder
 import com.example.mfservice.service.AnalyticsService
 import com.example.mfservice.service.CustomerService
+import com.example.mfservice.service.FamilyService
 import com.example.mfservice.service.FolioStatementService
 import com.example.mfservice.service.PortfolioService
 import com.example.mfservice.service.SipOrderService
+import com.example.mfservice.web.dto.AddFamilyMemberRequest
 import com.example.mfservice.web.dto.AnalyticsResponse
 import com.example.mfservice.web.dto.CapitalGainsResponse
 import com.example.mfservice.web.dto.CustomerSummaryResponse
+import com.example.mfservice.web.dto.FamilyResponse
 import com.example.mfservice.web.dto.FolioDetailResponse
 import com.example.mfservice.web.dto.FolioResponse
 import com.example.mfservice.web.dto.HoldingsResponse
@@ -24,6 +27,8 @@ import com.example.mfservice.web.dto.TransactionResponse
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -35,6 +40,7 @@ import java.util.UUID
 class MfController(
     private val holder: TenantContextHolder,
     private val customerService: CustomerService,
+    private val familyService: FamilyService,
     private val portfolio: PortfolioService,
     private val sipOrders: SipOrderService,
     private val foliosStatements: FolioStatementService,
@@ -49,6 +55,27 @@ class MfController(
         val ctx = ctx()
         if (!ctx.isStaff()) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Staff only")
         return customerService.listCustomers(ctx.tenantId)
+    }
+
+    /** A client's family: every member, family totals and the family XIRR. Staff may view any
+     *  client's family; a customer may only view their own, and only if they are the head. */
+    @GetMapping("/family")
+    fun family(@RequestParam customerId: UUID): FamilyResponse {
+        val ctx = ctx()
+        if (!ctx.isStaff() && (ctx.userId != customerId || !familyService.isHead(ctx.tenantId, customerId))) {
+            throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not allowed")
+        }
+        return familyService.family(ctx.tenantId, customerId)
+    }
+
+    /** Provision a new family member for a head client (owners/employees only). */
+    @PostMapping("/family/members")
+    fun addFamilyMember(@RequestBody req: AddFamilyMemberRequest): CustomerSummaryResponse {
+        val ctx = ctx()
+        if (!ctx.isStaff()) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Staff only")
+        val member = familyService.addMember(ctx.tenantId, UUID.fromString(req.headCustomerId), req.name, req.email, req.relation)
+        val s = portfolio.summary(ctx.tenantId, member.id)
+        return CustomerSummaryResponse(member.id.toString(), member.name, member.email, s.totalInvested, s.totalCurrentValue, s.totalGain, s.gainPct, s.fundCount, s.activeSipCount)
     }
 
     @GetMapping("/summary")

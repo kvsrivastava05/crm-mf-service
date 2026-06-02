@@ -16,12 +16,21 @@ import java.util.UUID
  * pick a client to view; every holding below is scoped to one client within the tenant.
  */
 @Entity
-@Table(name = "mf_customers", indexes = [Index(name = "idx_mf_customer_tenant", columnList = "tenantId")])
+@Table(
+    name = "mf_customers",
+    indexes = [
+        Index(name = "idx_mf_customer_tenant", columnList = "tenantId"),
+        Index(name = "idx_mf_customer_family", columnList = "tenantId,familyId"),
+    ],
+)
 class MfCustomer(
     @Id val id: UUID,
     val tenantId: UUID,
     val name: String,
     val email: String,
+    val familyId: UUID? = null, // clients in the same family share this; null = no family yet
+    val relation: String = "Self", // Self (head) / Spouse / Son / Daughter / Parent ...
+    val isHead: Boolean = false, // the head sees the whole family's investments
 )
 
 @Entity

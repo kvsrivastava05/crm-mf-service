@@ -24,6 +24,37 @@ data class SummaryResponse(
     val activeSipCount: Long,
 )
 
+/** One member of a family with their portfolio rolled up (for the head's family view). */
+data class FamilyMemberResponse(
+    val id: String,
+    val name: String,
+    val relation: String,
+    val isHead: Boolean,
+    val totalInvested: BigDecimal,
+    val totalCurrentValue: BigDecimal,
+    val totalGain: BigDecimal,
+    val gainPct: Double,
+)
+
+/** A family's combined investments: every member plus family totals and the family-level XIRR (CAGR). */
+data class FamilyResponse(
+    val familyId: String,
+    val members: List<FamilyMemberResponse>,
+    val totalInvested: BigDecimal,
+    val totalCurrentValue: BigDecimal,
+    val totalGain: BigDecimal,
+    val gainPct: Double,
+    val xirr: Double,
+)
+
+/** Request to add a family member to a head client (the new member becomes a client in the same family). */
+data class AddFamilyMemberRequest(
+    val headCustomerId: String,
+    val name: String,
+    val email: String,
+    val relation: String,
+)
+
 /** One client in the firm's roster, with their portfolio rolled up — for the owner/employee picker. */
 data class CustomerSummaryResponse(
     val id: String,
