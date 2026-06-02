@@ -24,6 +24,19 @@ data class SummaryResponse(
     val activeSipCount: Long,
 )
 
+/** One client in the firm's roster, with their portfolio rolled up — for the owner/employee picker. */
+data class CustomerSummaryResponse(
+    val id: String,
+    val name: String,
+    val email: String,
+    val totalInvested: BigDecimal,
+    val totalCurrentValue: BigDecimal,
+    val totalGain: BigDecimal,
+    val gainPct: Double,
+    val fundCount: Int,
+    val activeSipCount: Long,
+)
+
 data class FundHolding(
     val fundId: String,
     val fundName: String,

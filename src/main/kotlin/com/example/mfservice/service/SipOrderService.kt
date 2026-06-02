@@ -25,10 +25,10 @@ class SipOrderService(
     private val funds: MfFundRepository,
     private val folios: MfFolioRepository,
 ) {
-    fun listSips(tenantId: UUID, status: SipStatus, page: Int, size: Int): PageResponse<SipResponse> {
+    fun listSips(tenantId: UUID, customerId: UUID, status: SipStatus, page: Int, size: Int): PageResponse<SipResponse> {
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        val foliosById = folios.findByTenantId(tenantId).associateBy { it.id }
-        val pg = sips.findByTenantIdAndStatus(tenantId, status, PageRequest.of(page, size))
+        val foliosById = folios.findByTenantIdAndCustomerId(tenantId, customerId).associateBy { it.id }
+        val pg = sips.findByTenantIdAndCustomerIdAndStatus(tenantId, customerId, status, PageRequest.of(page, size))
         return PageResponse(
             content = pg.content.map { toSip(it, fundsById, foliosById) },
             page = pg.number, size = pg.size, totalElements = pg.totalElements,
@@ -36,10 +36,10 @@ class SipOrderService(
         )
     }
 
-    fun listOrders(tenantId: UUID, status: OrderStatus, page: Int, size: Int): PageResponse<OrderResponse> {
+    fun listOrders(tenantId: UUID, customerId: UUID, status: OrderStatus, page: Int, size: Int): PageResponse<OrderResponse> {
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        val foliosById = folios.findByTenantId(tenantId).associateBy { it.id }
-        val pg = orders.findByTenantIdAndStatus(tenantId, status, PageRequest.of(page, size))
+        val foliosById = folios.findByTenantIdAndCustomerId(tenantId, customerId).associateBy { it.id }
+        val pg = orders.findByTenantIdAndCustomerIdAndStatus(tenantId, customerId, status, PageRequest.of(page, size))
         return PageResponse(
             content = pg.content.map { toOrder(it, fundsById, foliosById) },
             page = pg.number, size = pg.size, totalElements = pg.totalElements,
@@ -48,10 +48,10 @@ class SipOrderService(
     }
 
     /** Active SIPs with a scheduled next instalment, soonest first (the upcoming-SIP calendar). */
-    fun upcomingSips(tenantId: UUID): List<SipResponse> {
+    fun upcomingSips(tenantId: UUID, customerId: UUID): List<SipResponse> {
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        val foliosById = folios.findByTenantId(tenantId).associateBy { it.id }
-        return sips.findByTenantIdAndStatusAndNextDateIsNotNullOrderByNextDateAsc(tenantId, SipStatus.ACTIVE)
+        val foliosById = folios.findByTenantIdAndCustomerId(tenantId, customerId).associateBy { it.id }
+        return sips.findByTenantIdAndCustomerIdAndStatusAndNextDateIsNotNullOrderByNextDateAsc(tenantId, customerId, SipStatus.ACTIVE)
             .map { toSip(it, fundsById, foliosById) }
     }
 

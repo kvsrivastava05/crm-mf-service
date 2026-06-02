@@ -6,7 +6,14 @@ import org.springframework.web.server.ResponseStatusException
 import java.util.UUID
 
 /** The caller identity for one request, resolved from a verified JWT. */
-data class TenantContext(val tenantId: UUID, val userId: UUID?)
+data class TenantContext(val tenantId: UUID, val userId: UUID?, val role: String = "") {
+    /** Owners/managers/employees see every client; a customer (future) only their own portfolio. */
+    fun isStaff(): Boolean = role.lowercase() in STAFF_ROLES
+
+    private companion object {
+        val STAFF_ROLES = setOf("owner", "manager", "employee")
+    }
+}
 
 /** ThreadLocal holder so services/controllers read the current tenant without threading it through. */
 @Component

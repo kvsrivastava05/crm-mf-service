@@ -20,9 +20,9 @@ class PortfolioService(
     private val folios: MfFolioRepository,
     private val sips: MfSipRepository,
 ) {
-    fun summary(tenantId: UUID): SummaryResponse {
+    fun summary(tenantId: UUID, customerId: UUID): SummaryResponse {
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        val all = folios.findByTenantId(tenantId)
+        val all = folios.findByTenantIdAndCustomerId(tenantId, customerId)
         var invested = BigDecimal.ZERO
         var current = BigDecimal.ZERO
         for (folio in all) {
@@ -37,13 +37,13 @@ class PortfolioService(
             totalGain = gain,
             gainPct = pct(gain, invested),
             fundCount = all.size,
-            activeSipCount = sips.countByTenantIdAndStatus(tenantId, SipStatus.ACTIVE),
+            activeSipCount = sips.countByTenantIdAndCustomerIdAndStatus(tenantId, customerId, SipStatus.ACTIVE),
         )
     }
 
-    fun holdings(tenantId: UUID): HoldingsResponse {
+    fun holdings(tenantId: UUID, customerId: UUID): HoldingsResponse {
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        val rows = folios.findByTenantId(tenantId).map { folio ->
+        val rows = folios.findByTenantIdAndCustomerId(tenantId, customerId).map { folio ->
             val fund = fundsById.getValue(folio.fundId)
             val current = folio.units.multiply(fund.currentNav)
             val gain = current.subtract(folio.investedAmount)

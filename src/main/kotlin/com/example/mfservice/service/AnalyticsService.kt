@@ -28,9 +28,9 @@ class AnalyticsService(
     private val txns: MfTransactionRepository,
 ) {
     /** Annualized return, allocation by category, and the best/worst performing holding. */
-    fun analytics(tenantId: UUID): AnalyticsResponse {
-        val summary = portfolio.summary(tenantId)
-        val categories = portfolio.holdings(tenantId).categories
+    fun analytics(tenantId: UUID, customerId: UUID): AnalyticsResponse {
+        val summary = portfolio.summary(tenantId, customerId)
+        val categories = portfolio.holdings(tenantId, customerId).categories
         val allHoldings = categories.flatMap { it.funds }
         val total = summary.totalCurrentValue
         val allocation = if (total.signum() == 0) {
@@ -43,8 +43,8 @@ class AnalyticsService(
         }
         // XIRR cashflows: each folio's invested amount as an outflow at the date the holding began
         // (its first SIP/transaction), plus the current value as one inflow today.
-        val startByFolio = holdingStartByFolio(tenantId)
-        val cashflows = folios.findByTenantId(tenantId).map { f ->
+        val startByFolio = holdingStartByFolio(tenantId, customerId)
+        val cashflows = folios.findByTenantIdAndCustomerId(tenantId, customerId).map { f ->
             (startByFolio[f.id] ?: LocalDate.now()) to f.investedAmount.negate().toDouble()
         } + (LocalDate.now() to summary.totalCurrentValue.toDouble())
         return AnalyticsResponse(
@@ -60,14 +60,14 @@ class AnalyticsService(
     }
 
     /** Unrealized gains split into short-term (held ≤ 1y) and long-term (held > 1y) buckets. */
-    fun capitalGains(tenantId: UUID): CapitalGainsResponse {
+    fun capitalGains(tenantId: UUID, customerId: UUID): CapitalGainsResponse {
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        val startByFolio = holdingStartByFolio(tenantId)
+        val startByFolio = holdingStartByFolio(tenantId, customerId)
         val ltThreshold = LocalDate.now().minusDays(365)
 
         var stInv = BigDecimal.ZERO; var stCur = BigDecimal.ZERO
         var ltInv = BigDecimal.ZERO; var ltCur = BigDecimal.ZERO
-        folios.findByTenantId(tenantId).forEach { folio ->
+        folios.findByTenantIdAndCustomerId(tenantId, customerId).forEach { folio ->
             val current = folio.units.multiply(fundsById.getValue(folio.fundId).currentNav)
             val started = startByFolio[folio.id] ?: LocalDate.now()
             if (started.isBefore(ltThreshold)) {
@@ -84,9 +84,9 @@ class AnalyticsService(
     }
 
     /** Invested vs current-NAV value at each of the last 12 month-ends (chart series). */
-    fun performance(tenantId: UUID): List<PerformancePoint> {
+    fun performance(tenantId: UUID, customerId: UUID): List<PerformancePoint> {
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        val all = txns.findByTenantId(tenantId)
+        val all = txns.findByTenantIdAndCustomerId(tenantId, customerId)
         val today = LocalDate.now()
         return (11 downTo 0).map { monthsAgo ->
             val asOf = today.minusMonths(monthsAgo.toLong())
@@ -98,14 +98,14 @@ class AnalyticsService(
     }
 
     /** Earliest activity per folio: the first of its transaction dates and SIP start dates. */
-    private fun holdingStartByFolio(tenantId: UUID): Map<UUID, LocalDate> {
+    private fun holdingStartByFolio(tenantId: UUID, customerId: UUID): Map<UUID, LocalDate> {
         val starts = HashMap<UUID, LocalDate>()
         fun consider(folioId: UUID, date: LocalDate) {
             val existing = starts[folioId]
             if (existing == null || date.isBefore(existing)) starts[folioId] = date
         }
-        txns.findByTenantId(tenantId).forEach { consider(it.folioId, it.date) }
-        sips.findByTenantId(tenantId).forEach { consider(it.folioId, it.startedAt) }
+        txns.findByTenantIdAndCustomerId(tenantId, customerId).forEach { consider(it.folioId, it.date) }
+        sips.findByTenantIdAndCustomerId(tenantId, customerId).forEach { consider(it.folioId, it.startedAt) }
         return starts
     }
 

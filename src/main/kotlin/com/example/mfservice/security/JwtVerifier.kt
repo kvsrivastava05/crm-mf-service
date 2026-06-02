@@ -20,6 +20,7 @@ class JwtVerifier(
             TenantContext(
                 tenantId = UUID.fromString(claims["tenant"].toString()),
                 userId = claims.subject?.let(UUID::fromString),
+                role = claims["role"]?.toString().orEmpty(),
             )
         } catch (ex: Exception) {
             null

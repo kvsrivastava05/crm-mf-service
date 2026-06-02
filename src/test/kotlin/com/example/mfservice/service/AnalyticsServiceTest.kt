@@ -1,5 +1,6 @@
 package com.example.mfservice.service
 
+import com.example.mfservice.MfSeeder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -16,10 +17,11 @@ class AnalyticsServiceTest {
     @Autowired lateinit var sipOrders: SipOrderService
 
     private val tenant = UUID.fromString("a0000000-0000-0000-0000-000000000001")
+    private val customer = MfSeeder.CUSTOMER_0
 
     @Test
     fun `analytics rolls up allocation, XIRR and best-worst holdings`() {
-        val a = analytics.analytics(tenant)
+        val a = analytics.analytics(tenant, customer)
         // Allocation = the three holding categories, summing to the total current value.
         assertEquals(3, a.assetAllocation.size)
         assertEquals(0, a.assetAllocation.fold(BigDecimal.ZERO) { acc, s -> acc.add(s.currentValue) }.compareTo(a.totalCurrentValue))
@@ -30,8 +32,8 @@ class AnalyticsServiceTest {
     }
 
     @Test
-    fun `analytics for a tenant with no data is all zeros`() {
-        val a = analytics.analytics(UUID.randomUUID())
+    fun `analytics for a client with no data is all zeros`() {
+        val a = analytics.analytics(tenant, MfSeeder.CUSTOMER_5) // Rohit Das holds nothing yet
         assertEquals(0, a.totalCurrentValue.compareTo(BigDecimal.ZERO))
         assertTrue(a.assetAllocation.isEmpty())
         assertNull(a.bestFund); assertNull(a.worstFund)
@@ -40,7 +42,7 @@ class AnalyticsServiceTest {
 
     @Test
     fun `capital gains split short-term and long-term buckets that sum to the total`() {
-        val cg = analytics.capitalGains(tenant)
+        val cg = analytics.capitalGains(tenant, customer)
         assertTrue(cg.shortTerm.currentValue.signum() > 0) // folios held <= 1y
         assertTrue(cg.longTerm.currentValue.signum() > 0)  // folios held > 1y
         assertEquals(0, cg.total.currentValue.compareTo(cg.shortTerm.currentValue.add(cg.longTerm.currentValue)))
@@ -49,7 +51,7 @@ class AnalyticsServiceTest {
 
     @Test
     fun `performance returns twelve accumulating month-end points`() {
-        val points = analytics.performance(tenant)
+        val points = analytics.performance(tenant, customer)
         assertEquals(12, points.size)
         assertTrue(points.last().value.signum() > 0)
         assertTrue(points.last().invested >= points.first().invested)
@@ -57,7 +59,7 @@ class AnalyticsServiceTest {
 
     @Test
     fun `upcoming SIPs are the active ones with a next date, soonest first`() {
-        val upcoming = sipOrders.upcomingSips(tenant)
+        val upcoming = sipOrders.upcomingSips(tenant, customer)
         assertEquals(3, upcoming.size)
         assertTrue(upcoming.all { it.status == "ACTIVE" && it.nextDate != null })
         assertTrue(upcoming.zipWithNext().all { (a, b) -> !a.nextDate!!.isAfter(b.nextDate!!) })

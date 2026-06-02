@@ -26,18 +26,18 @@ class FolioStatementService(
     private val sips: MfSipRepository,
     private val txns: MfTransactionRepository,
 ) {
-    fun listFolios(tenantId: UUID): List<FolioResponse> {
+    fun listFolios(tenantId: UUID, customerId: UUID): List<FolioResponse> {
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        return folios.findByTenantId(tenantId).map { toFolio(it, fundsById.getValue(it.fundId)) }
+        return folios.findByTenantIdAndCustomerId(tenantId, customerId).map { toFolio(it, fundsById.getValue(it.fundId)) }
     }
 
-    fun folioDetail(tenantId: UUID, folioId: UUID): FolioDetailResponse {
-        val folio = folios.findByIdAndTenantId(folioId, tenantId)
+    fun folioDetail(tenantId: UUID, customerId: UUID, folioId: UUID): FolioDetailResponse {
+        val folio = folios.findByIdAndTenantIdAndCustomerId(folioId, tenantId, customerId)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Folio not found")
         val fundsById = funds.findByTenantId(tenantId).associateBy { it.id }
-        val foliosById = folios.findByTenantId(tenantId).associateBy { it.id }
+        val foliosById = folios.findByTenantIdAndCustomerId(tenantId, customerId).associateBy { it.id }
         val fund = fundsById.getValue(folio.fundId)
-        val folioSips = sips.findByTenantIdAndFolioId(tenantId, folioId).map { s ->
+        val folioSips = sips.findByTenantIdAndCustomerIdAndFolioId(tenantId, customerId, folioId).map { s ->
             SipResponse(
                 id = s.id.toString(),
                 fundName = fundsById.getValue(s.fundId).name,
@@ -47,12 +47,12 @@ class FolioStatementService(
                 startedAt = s.startedAt, installmentsDone = s.installmentsDone, status = s.status.name,
             )
         }
-        val recent = txns.findTop5ByTenantIdAndFolioIdOrderByDateDesc(tenantId, folioId).map(::toTxn)
+        val recent = txns.findTop5ByTenantIdAndCustomerIdAndFolioIdOrderByDateDesc(tenantId, customerId, folioId).map(::toTxn)
         return FolioDetailResponse(toFolio(folio, fund), folioSips, recent)
     }
 
-    fun statement(tenantId: UUID, folioId: UUID, page: Int, size: Int): PageResponse<TransactionResponse> {
-        val pg = txns.findByTenantIdAndFolioIdOrderByDateDesc(tenantId, folioId, PageRequest.of(page, size))
+    fun statement(tenantId: UUID, customerId: UUID, folioId: UUID, page: Int, size: Int): PageResponse<TransactionResponse> {
+        val pg = txns.findByTenantIdAndCustomerIdAndFolioIdOrderByDateDesc(tenantId, customerId, folioId, PageRequest.of(page, size))
         return PageResponse(
             content = pg.content.map(::toTxn),
             page = pg.number, size = pg.size, totalElements = pg.totalElements,

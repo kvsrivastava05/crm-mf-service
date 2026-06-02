@@ -32,6 +32,7 @@ class MfMvcTest {
     private val secret = "test-secret-test-secret-test-secret-32bytes!!"
     private val key = Keys.hmacShaKeyFor(secret.toByteArray(StandardCharsets.UTF_8))
     private val tenant = "a0000000-0000-0000-0000-000000000001"
+    private val customer = "d0000000-0000-0000-0000-000000000001" // Aarav Mehta
     private lateinit var mvc: MockMvc
 
     @BeforeEach
@@ -41,9 +42,9 @@ class MfMvcTest {
             .build()
     }
 
-    private fun auth(): HttpHeaders {
+    private fun auth(role: String = "owner"): HttpHeaders {
         val jwt = Jwts.builder().subject("b0000000-0000-0000-0000-000000000001")
-            .claim("tenant", tenant)
+            .claim("tenant", tenant).claim("role", role)
             .issuedAt(Date()).expiration(Date(System.currentTimeMillis() + 3_600_000))
             .signWith(key).compact()
         return HttpHeaders().apply { setBearerAuth(jwt) }
@@ -64,49 +65,57 @@ class MfMvcTest {
     }
 
     @Test
-    fun `summary and holdings require a token and return data`() {
-        assertEquals(200, status("/mf/summary", auth()))
-        val holdings = mvc.perform(get("/mf/holdings").headers(auth())).andReturn().response
+    fun `the client roster is staff-only`() {
+        val staff = mvc.perform(get("/mf/customers").headers(auth("employee"))).andReturn().response
+        assertEquals(200, staff.status)
+        assertTrue(staff.contentAsString.contains("Aarav Mehta"))
+        assertEquals(403, status("/mf/customers", auth("customer"))) // a customer cannot list every client
+    }
+
+    @Test
+    fun `summary and holdings require a token and are scoped to a client`() {
+        assertEquals(200, status("/mf/summary?customerId=$customer", auth()))
+        val holdings = mvc.perform(get("/mf/holdings?customerId=$customer").headers(auth())).andReturn().response
         assertEquals(200, holdings.status)
         assertTrue(holdings.contentAsString.contains("EQUITY"))
     }
 
     @Test
     fun `SIPs and orders accept status + pagination, reject an invalid status`() {
-        val sips = mvc.perform(get("/mf/sips?status=ACTIVE&page=0&size=2").headers(auth())).andReturn().response
+        val sips = mvc.perform(get("/mf/sips?customerId=$customer&status=ACTIVE&page=0&size=2").headers(auth())).andReturn().response
         assertEquals(200, sips.status)
         assertTrue(sips.contentAsString.contains("\"totalElements\":3"))
-        assertEquals(200, status("/mf/sips?status=PAUSED", auth()))
-        assertEquals(200, status("/mf/orders?status=CURRENT", auth()))
-        assertEquals(200, status("/mf/orders?status=PAST&page=0&size=2", auth()))
-        assertEquals(400, status("/mf/sips?status=NONSENSE", auth())) // enum bind failure -> 400
+        assertEquals(200, status("/mf/sips?customerId=$customer&status=PAUSED", auth()))
+        assertEquals(200, status("/mf/orders?customerId=$customer&status=CURRENT", auth()))
+        assertEquals(200, status("/mf/orders?customerId=$customer&status=PAST&page=0&size=2", auth()))
+        assertEquals(400, status("/mf/sips?customerId=$customer&status=NONSENSE", auth())) // enum bind failure -> 400
     }
 
     @Test
     fun `folios list, folio detail, statement, and unknown folio is 404`() {
-        assertEquals(200, status("/mf/folios", auth()))
-        assertEquals(200, status("/mf/folios/${folio0Id()}", auth()))
-        assertEquals(200, status("/mf/statements?folioId=${folio0Id()}&page=0&size=10", auth()))
-        assertEquals(404, status("/mf/folios/${UUID.randomUUID()}", auth()))
+        assertEquals(200, status("/mf/folios?customerId=$customer", auth()))
+        assertEquals(200, status("/mf/folios/${folio0Id()}?customerId=$customer", auth()))
+        assertEquals(200, status("/mf/statements?customerId=$customer&folioId=${folio0Id()}&page=0&size=10", auth()))
+        assertEquals(404, status("/mf/folios/${UUID.randomUUID()}?customerId=$customer", auth()))
     }
 
     @Test
     fun `analytics, capital-gains, performance and upcoming SIPs respond`() {
-        val analytics = mvc.perform(get("/mf/analytics").headers(auth())).andReturn().response
+        val analytics = mvc.perform(get("/mf/analytics?customerId=$customer").headers(auth())).andReturn().response
         assertEquals(200, analytics.status)
         assertTrue(analytics.contentAsString.contains("assetAllocation"))
         assertTrue(analytics.contentAsString.contains("xirr"))
-        assertEquals(200, status("/mf/capital-gains", auth()))
-        assertEquals(200, status("/mf/performance", auth()))
-        val upcoming = mvc.perform(get("/mf/sips/upcoming").headers(auth())).andReturn().response
+        assertEquals(200, status("/mf/capital-gains?customerId=$customer", auth()))
+        assertEquals(200, status("/mf/performance?customerId=$customer", auth()))
+        val upcoming = mvc.perform(get("/mf/sips/upcoming?customerId=$customer").headers(auth())).andReturn().response
         assertEquals(200, upcoming.status)
-        assertEquals(401, status("/mf/analytics")) // still gated
+        assertEquals(401, status("/mf/analytics?customerId=$customer")) // still gated
     }
 
     @Test
     fun `requests without a valid token are 401`() {
-        assertEquals(401, status("/mf/summary"))
-        assertEquals(401, mvc.perform(get("/mf/summary").header("Authorization", "Bearer garbage")).andReturn().response.status)
+        assertEquals(401, status("/mf/summary?customerId=$customer"))
+        assertEquals(401, mvc.perform(get("/mf/summary?customerId=$customer").header("Authorization", "Bearer garbage")).andReturn().response.status)
     }
 
     @Test
