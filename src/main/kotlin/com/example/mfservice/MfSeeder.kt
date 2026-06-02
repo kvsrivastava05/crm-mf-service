@@ -143,6 +143,28 @@ class MfSeeder(
         seedClient(CUSTOMER_7, 200700, fundList, today, listOf(
             Holding(8, "300", "12000", "1000"),
         ))
+
+        // ---- Recent advisor activity (powers payroll "new SIPs / new AUM" across weeks/months/years) ----
+        // Spread SIP starts and lump-sum purchases over the last ~2 years for the clients that the
+        // advisors Tanya (Diya), Vanshika (Ananya) and Harsh (Karan) converted — see lead-service links.
+        seedRecentActivity(CUSTOMER_2, 200350, fundList[4], today, "3000", "12000")
+        seedRecentActivity(CUSTOMER_3, 200450, fundList[5], today, "2500", "15000")
+        seedRecentActivity(CUSTOMER_4, 200550, fundList[6], today, "4000", "18000")
+    }
+
+    /** A spread of started SIPs and lump-sum PURCHASE orders for one client, dated across recent
+     *  weeks/months/years so every payroll granularity has data. */
+    private fun seedRecentActivity(customerId: UUID, folioNum: Int, fund: MfFund, today: LocalDate, sipAmount: String, orderAmount: String) {
+        fun bd(v: String) = BigDecimal(v)
+        val folio = MfFolio(UUID.randomUUID(), TENANT, customerId, "FOLIO$folioNum", fund.id, bd("500"), bd("50000"), "ACTIVE")
+        folios.save(folio)
+        val now = Instant.now()
+        sips.saveAll(listOf(1L, 20L, 80L, 250L, 600L).map { d ->
+            sip(customerId, folio, bd(sipAmount), today.plusDays(7), today.minusDays(d), 1, SipStatus.ACTIVE)
+        })
+        orders.saveAll(listOf(1L, 35L, 120L, 400L).map { d ->
+            order(customerId, folio, OrderType.PURCHASE, bd(orderAmount), null, null, OrderStatus.PAST, now.minus(java.time.Duration.ofDays(d)), now.minus(java.time.Duration.ofDays(d)))
+        })
     }
 
     /** A planned holding for a smaller client: which fund, units, amount invested, optional active SIP. */

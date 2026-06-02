@@ -30,6 +30,7 @@ interface MfFolioRepository : CrudRepository<MfFolio, UUID> {
 }
 
 interface MfSipRepository : CrudRepository<MfSip, UUID> {
+    fun findByTenantId(tenantId: UUID): List<MfSip>
     fun findByTenantIdAndCustomerId(tenantId: UUID, customerId: UUID): List<MfSip>
     fun findByTenantIdAndCustomerIdAndStatus(tenantId: UUID, customerId: UUID, status: SipStatus, pageable: Pageable): Page<MfSip>
     fun countByTenantIdAndCustomerIdAndStatus(tenantId: UUID, customerId: UUID, status: SipStatus): Long
@@ -38,6 +39,7 @@ interface MfSipRepository : CrudRepository<MfSip, UUID> {
 }
 
 interface MfOrderRepository : CrudRepository<MfOrder, UUID> {
+    fun findByTenantId(tenantId: UUID): List<MfOrder>
     fun findByTenantIdAndCustomerIdAndStatus(tenantId: UUID, customerId: UUID, status: OrderStatus, pageable: Pageable): Page<MfOrder>
 }
 

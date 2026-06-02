@@ -8,8 +8,10 @@ import com.example.mfservice.service.AnalyticsService
 import com.example.mfservice.service.CustomerService
 import com.example.mfservice.service.FamilyService
 import com.example.mfservice.service.FolioStatementService
+import com.example.mfservice.service.MetricsService
 import com.example.mfservice.service.PortfolioService
 import com.example.mfservice.service.SipOrderService
+import com.example.mfservice.web.dto.ActivityResponse
 import com.example.mfservice.web.dto.AddFamilyMemberRequest
 import com.example.mfservice.web.dto.AnalyticsResponse
 import com.example.mfservice.web.dto.CapitalGainsResponse
@@ -24,6 +26,7 @@ import com.example.mfservice.web.dto.PerformancePoint
 import com.example.mfservice.web.dto.SipResponse
 import com.example.mfservice.web.dto.SummaryResponse
 import com.example.mfservice.web.dto.TransactionResponse
+import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -33,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.server.ResponseStatusException
+import java.time.LocalDate
 import java.util.UUID
 
 @RestController
@@ -45,9 +49,21 @@ class MfController(
     private val sipOrders: SipOrderService,
     private val foliosStatements: FolioStatementService,
     private val analytics: AnalyticsService,
+    private val metrics: MetricsService,
 ) {
     @GetMapping("/health")
     fun health(): Map<String, String> = mapOf("status" to "ok")
+
+    /** New SIP/order activity per client in a window — staff only; powers advisor payroll. */
+    @GetMapping("/metrics/activity")
+    fun activity(
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) from: LocalDate,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) to: LocalDate,
+    ): ActivityResponse {
+        val ctx = ctx()
+        if (!ctx.isStaff()) throw ResponseStatusException(HttpStatus.FORBIDDEN, "Staff only")
+        return metrics.activity(ctx.tenantId, from, to)
+    }
 
     /** The firm's client roster (with portfolio rollups). Owners/employees only. */
     @GetMapping("/customers")

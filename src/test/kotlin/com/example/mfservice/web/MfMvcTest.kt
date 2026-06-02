@@ -145,6 +145,18 @@ class MfMvcTest {
     }
 
     @Test
+    fun `metrics activity is staff-only, validates dates, and reports per-client activity`() {
+        val win = "from=2000-01-01&to=2100-01-01"
+        val staff = mvc.perform(get("/mf/metrics/activity?$win").headers(auth())).andReturn().response
+        assertEquals(200, staff.status)
+        assertTrue(staff.contentAsString.contains(customer)) // Aarav appears with activity
+        assertTrue(staff.contentAsString.contains("newSips"))
+        assertEquals(403, status("/mf/metrics/activity?$win", auth("customer"))) // customers can't see firm metrics
+        assertEquals(401, status("/mf/metrics/activity?$win")) // no token
+        assertEquals(400, status("/mf/metrics/activity?from=not-a-date&to=2100-01-01", auth())) // bad date -> 400
+    }
+
+    @Test
     fun `requests without a valid token are 401`() {
         assertEquals(401, status("/mf/summary?customerId=$customer"))
         assertEquals(401, mvc.perform(get("/mf/summary?customerId=$customer").header("Authorization", "Bearer garbage")).andReturn().response.status)

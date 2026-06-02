@@ -15,6 +15,22 @@ data class PageResponse<T>(
     val hasPrev: Boolean,
 )
 
+/** A client's new investment activity inside a date window — used by payroll to credit the advisor
+ *  who converted them. `newSips` = SIP mandates started; `newOrders` = lump-sum PURCHASE orders placed. */
+data class CustomerActivity(
+    val newSips: Int,
+    val newSipAmount: BigDecimal,
+    val newOrders: Int,
+    val newOrderAmount: BigDecimal,
+)
+
+/** Per-customer new activity for [from, to). The caller (lead-service) maps customers to employees. */
+data class ActivityResponse(
+    val from: LocalDate,
+    val to: LocalDate,
+    val customers: Map<String, CustomerActivity>,
+)
+
 data class SummaryResponse(
     val totalInvested: BigDecimal,
     val totalCurrentValue: BigDecimal,
